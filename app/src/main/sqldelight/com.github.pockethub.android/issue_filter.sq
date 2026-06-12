@@ -67,10 +67,10 @@ removeIssueFilterLabel:
 DELETE FROM issue_filter_labels WHERE issue_filter_id = ? AND repo_id = ? AND name = ?;
 
 clearIssueFilters:
-DELETE FROM issue_filter_labels;
+DELETE FROM issue_filters;
 
 clearMilestones:
-DELETE FROM issue_filters;
+DELETE FROM milestones;
 
 clearLabels:
 DELETE FROM labels;

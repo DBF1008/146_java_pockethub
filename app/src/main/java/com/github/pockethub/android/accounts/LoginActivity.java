@@ -102,6 +102,9 @@ public class LoginActivity extends AccountAuthenticatorAppCompatActivity {
     @Inject
     protected UserService userService;
 
+    @Inject
+    protected AccountSwitchManager accountSwitchManager;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -239,6 +242,10 @@ public class LoginActivity extends AccountAuthenticatorAppCompatActivity {
                     result.putString(AccountManager.KEY_AUTHTOKEN, accessToken);
 
                     configureSyncFor(account);
+                    // Tag the new account as the cache owner and kick off an expedited sync so
+                    // the freshly-cleared cache is repopulated with this account's data and the
+                    // MainActivity isolation guard does not mistake this for a stale switch.
+                    accountSwitchManager.prepareForNewAccount(account);
                     setAccountAuthenticatorResult(result);
 
                     finish();

@@ -38,8 +38,8 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.content.edit
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
-import com.github.pockethub.android.Database
 import com.github.pockethub.android.R
+import com.github.pockethub.android.accounts.AccountSwitchManager
 import com.github.pockethub.android.accounts.AccountUtils
 import com.github.pockethub.android.accounts.AccountsHelper
 import com.github.pockethub.android.accounts.LoginActivity
@@ -74,7 +74,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     lateinit var accountDataManager: AccountDataManager
 
     @Inject
-    lateinit var database: Database
+    lateinit var accountSwitchManager: AccountSwitchManager
 
     @Inject
     lateinit var userComparatorProvider: Provider<UserComparator>
@@ -167,7 +167,13 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
 
     private fun reloadOrgs() {
         Single.fromCallable { AccountUtils.getAccount(accountManager, this) }
-            .map { account -> accountDataManager.getOrgs(true) }
+            .map { account ->
+                // Isolate any stale data before backfilling: if the local cache belongs to a
+                // different account it is cleared here, so the forced reload below fetches fresh
+                // data instead of the previous account's rows.
+                accountSwitchManager.enforceIsolation(account)
+                accountDataManager.getOrgs(true)
+            }
             .map { orgs ->
                 Collections.sort(orgs, userComparatorProvider.get())
                 orgs
@@ -197,6 +203,10 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         if (org!!.login() != AccountUtils.getLogin(this)) {
             AccountUtils.renameAccount(org!!.login(), account, accountManager, this)
         }
+
+        // Keep the cache-ownership tag aligned with the (possibly renamed) account so a later
+        // reload does not mistake the rename for an account switch and clear fresh data.
+        AccountUtils.getAccount(this)?.let { accountSwitchManager.markCacheOwner(it) }
 
         setUpNavigationView()
 
@@ -336,10 +346,9 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
             CookieManager.getInstance().removeAllCookie()
         }
 
-        // Clear all of the cached data
-        database.repositoriesQueries.clearRepositories()
-        database.organizationsQueries.clearOrgs()
-        database.organizationsQueries.clearUsers()
+        // Clear all per-account local data (token, database rows, recent-repo files and the
+        // cache directory) before removing the account so nothing leaks into the next account.
+        accountSwitchManager.clearAllLocalData()
 
         // Remove the account
         val accountManager = accountManager

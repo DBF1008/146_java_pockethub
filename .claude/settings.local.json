@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find app/src -name *.sq)",
+      "Bash(find app/src -name Database* -o -name *.sqdelight)"
+    ]
+  }
+}
