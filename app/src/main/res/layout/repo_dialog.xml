@@ -55,6 +55,39 @@
             android:visibility="gone" />
 
         <LinearLayout
+            android:id="@+id/ll_pin_area"
+            style="@style/ListItem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone" >
+
+            <ImageView
+                android:id="@+id/iv_pin_icon"
+                style="@style/AvatarLarge"
+                android:src="@drawable/ic_star_white_24dp"
+                android:contentDescription="@string/pin_action" />
+
+            <TextView
+                android:id="@+id/tv_pin_label"
+                style="@style/ListTitleText"
+                android:text="@string/recent_pin"
+                android:layout_width="match_parent"
+                android:includeFontPadding="true"
+                android:maxLines="2"
+                android:paddingBottom="0dp"
+                android:paddingStart="10dp"
+                android:textStyle="normal" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/divider_pin_recent"
+            style="@style/Separator"
+            android:visibility="gone" />
+
+        <LinearLayout
             android:id="@+id/ll_recent_repo_area"
             style="@style/ListItem"
             android:layout_width="match_parent"

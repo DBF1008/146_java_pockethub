@@ -1,0 +1,10 @@
+CREATE TABLE recent_repos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_login TEXT NOT NULL,
+    repo_id INTEGER NOT NULL,
+    org_id INTEGER NOT NULL,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    pin_order INTEGER,
+    last_accessed INTEGER NOT NULL,
+    UNIQUE(account_login, repo_id)
+);

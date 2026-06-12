@@ -177,6 +177,11 @@
     <string name="recent">Recent</string>
     <string name="recent_remove">Remove Recent</string>
     <string name="recent_list_remove">Remove from recently viewed</string>
+    <string name="pinned">PINNED</string>
+    <string name="recent_pin">Pin to top</string>
+    <string name="recent_unpin">Unpin from top</string>
+    <string name="pin_action">Pin</string>
+    <string name="unpin_action">Unpin</string>
     <string name="section_issue_status">Status:</string>
     <string name="status_open">Open</string>
     <string name="status_closed">Closed</string>

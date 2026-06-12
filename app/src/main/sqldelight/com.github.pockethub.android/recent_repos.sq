@@ -1,0 +1,54 @@
+CREATE TABLE recent_repos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_login TEXT NOT NULL,
+    repo_id INTEGER NOT NULL,
+    org_id INTEGER NOT NULL,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    pin_order INTEGER,
+    last_accessed INTEGER NOT NULL,
+    UNIQUE(account_login, repo_id)
+);
+
+selectRecent:
+SELECT * FROM recent_repos
+WHERE account_login = ? AND org_id = ?
+ORDER BY pinned DESC, CASE WHEN pinned = 1 THEN pin_order ELSE 0 END ASC, last_accessed DESC;
+
+selectUnpinned:
+SELECT * FROM recent_repos
+WHERE account_login = ? AND org_id = ? AND pinned = 0
+ORDER BY last_accessed ASC;
+
+selectByRepo:
+SELECT * FROM recent_repos
+WHERE account_login = ? AND repo_id = ?;
+
+insertRecent:
+INSERT OR REPLACE INTO recent_repos(account_login, repo_id, org_id, pinned, pin_order, last_accessed)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updatePinned:
+UPDATE recent_repos SET pinned = ?, pin_order = ?
+WHERE account_login = ? AND repo_id = ?;
+
+updateLastAccessed:
+UPDATE recent_repos SET last_accessed = ?
+WHERE account_login = ? AND repo_id = ?;
+
+removeRecent:
+DELETE FROM recent_repos
+WHERE account_login = ? AND repo_id = ?;
+
+removeAllForAccount:
+DELETE FROM recent_repos WHERE account_login = ?;
+
+clearAll:
+DELETE FROM recent_repos;
+
+countUnpinnedForOrg:
+SELECT COUNT(*) FROM recent_repos
+WHERE account_login = ? AND org_id = ? AND pinned = 0;
+
+maxPinOrder:
+SELECT MAX(pin_order) FROM recent_repos
+WHERE account_login = ? AND org_id = ?;
