@@ -103,6 +103,60 @@ class SearchIssueListFragment : BaseFragment() {
             PagedScrollListener(itemListHandler.mainSection, pagedListFetcher)
         )
         itemListHandler.setEmptyText(R.string.no_issues)
+
+        // Keep the loaded results, paging cursor and scroll position instead of
+        // reloading from the first page on every start (rotation, returning from
+        // a detail screen, ...). A brand new search still loads on first start.
+        pagedListFetcher.refreshOnStart = false
+        restoreSearchSession(view, savedInstanceState)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+
+        if (!::itemListHandler.isInitialized || !::pagedListFetcher.isInitialized) {
+            return
+        }
+
+        val issues = itemListHandler.items
+            .filterIsInstance<IssueItem>()
+            .map { it.issue }
+
+        val session = SearchSession(
+            query,
+            repository,
+            pagedListFetcher.currentPage,
+            pagedListFetcher.hasMore,
+            itemListHandler.getFirstVisibleItemPosition(),
+            itemListHandler.getFirstVisibleItemOffset(),
+            issues
+        )
+
+        outState.putBundle(SearchSession.KEY, session.toBundle())
+    }
+
+    private fun restoreSearchSession(view: View, savedInstanceState: Bundle?) {
+        val session = SearchSession.fromBundle(
+            savedInstanceState?.getBundle(SearchSession.KEY)
+        ) ?: return
+
+        query = session.query
+        if (session.repository != null) {
+            repository = session.repository
+        }
+
+        val restoredItems = session.issues.map { createItem(it) }
+        itemListHandler.update(restoredItems)
+        pagedListFetcher.restoreState(session.page, session.hasMore)
+
+        if (session.scrollPosition >= 0) {
+            view.list.post {
+                itemListHandler.scrollToPosition(
+                    session.scrollPosition,
+                    session.scrollOffset
+                )
+            }
+        }
     }
     /**
      * @param query

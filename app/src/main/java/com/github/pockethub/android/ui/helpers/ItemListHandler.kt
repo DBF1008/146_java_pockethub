@@ -42,9 +42,15 @@ class ItemListHandler(
     var items: MutableList<Item<*>> = ArrayList()
         private set
 
+    /**
+     * Layout manager backing the [RecyclerView]. Kept so the current scroll
+     * position can be read and later restored.
+     */
+    private val layoutManager = LinearLayoutManager(context)
+
     init {
         adapter.add(mainSection)
-        recyclerView.layoutManager = LinearLayoutManager(context)
+        recyclerView.layoutManager = layoutManager
         recyclerView.adapter = adapter
 
         adapter.setOnItemClickListener(clickListener)
@@ -53,6 +59,32 @@ class ItemListHandler(
 
     fun getItemPosition(item: Item<*>): Int {
         return adapter.getAdapterPosition(item)
+    }
+
+    /**
+     * @return the adapter position of the first (partially) visible item, or
+     * [RecyclerView.NO_POSITION] when the list is empty.
+     */
+    fun getFirstVisibleItemPosition(): Int =
+        layoutManager.findFirstVisibleItemPosition()
+
+    /**
+     * @return the top offset in pixels of the first visible item, used together
+     * with [getFirstVisibleItemPosition] to restore the exact scroll position.
+     */
+    fun getFirstVisibleItemOffset(): Int {
+        val position = layoutManager.findFirstVisibleItemPosition()
+        val view = layoutManager.findViewByPosition(position)
+        return view?.top ?: 0
+    }
+
+    /**
+     * Restore a previously saved scroll position.
+     */
+    fun scrollToPosition(position: Int, offset: Int) {
+        if (position >= 0) {
+            layoutManager.scrollToPositionWithOffset(position, offset)
+        }
     }
 
     private fun show(view: View) {

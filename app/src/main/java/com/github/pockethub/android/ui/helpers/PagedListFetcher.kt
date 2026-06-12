@@ -34,6 +34,21 @@ class PagedListFetcher<E>(
 
     var hasMore: Boolean = true
 
+    /**
+     * When true (the default) the list is refreshed from the first page on every
+     * [Lifecycle.Event.ON_START]. Set to false to keep an already loaded list
+     * (and a restored session) instead of reloading on each start, for example
+     * after returning from a detail screen or a configuration change.
+     */
+    var refreshOnStart: Boolean = true
+
+    /**
+     * Whether at least one page has been loaded (or restored) since the current
+     * data set was set up. Used to still perform the very first load when
+     * [refreshOnStart] is disabled.
+     */
+    private var hasLoadedOnce = false
+
     var onPageLoaded: (MutableList<Item<*>>) -> MutableList<Item<*>> = { items -> items }
 
     /**
@@ -55,7 +70,9 @@ class PagedListFetcher<E>(
 
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     private fun onStart() {
-        refresh()
+        if (refreshOnStart || !hasLoadedOnce) {
+            refresh()
+        }
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
@@ -84,6 +101,25 @@ class PagedListFetcher<E>(
             page++
             fetchPage()
         }
+    }
+
+    /**
+     * The next page that will be requested. Exposed so the paging cursor can be
+     * captured in a [com.github.pockethub.android.ui.issue.SearchSession] and
+     * restored later.
+     */
+    val currentPage: Int
+        get() = page
+
+    /**
+     * Restore the paging state from a saved session without issuing a network
+     * request. Marks the list as already loaded so the automatic [onStart]
+     * refresh is skipped when [refreshOnStart] is disabled.
+     */
+    fun restoreState(page: Int, hasMore: Boolean) {
+        this.page = page
+        this.hasMore = hasMore
+        this.hasLoadedOnce = true
     }
 
     private fun fetchPage() {
@@ -119,6 +155,7 @@ class PagedListFetcher<E>(
 
     private fun onDataLoaded(newItems: MutableList<Item<*>>) {
         isLoading = false
+        hasLoadedOnce = true
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.isRefreshing = false
         }
