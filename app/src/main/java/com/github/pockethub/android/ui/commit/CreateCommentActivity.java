@@ -130,4 +130,13 @@ public class CreateCommentActivity extends
     protected CommentPreviewPagerAdapter createAdapter() {
         return new CommentPreviewPagerAdapter(this, repository);
     }
+
+    @Override
+    protected String getDraftKey() {
+        String base = "commit/" + repository.owner().login() + "/"
+                + repository.name() + "@" + commit;
+        return isLineComment(path, position)
+                ? base + ":" + path + ":" + position
+                : base;
+    }
 }

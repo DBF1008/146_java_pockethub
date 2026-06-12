@@ -89,4 +89,9 @@ public class CreateCommentActivity extends
                     ToastUtils.show(this, error.getMessage());
                 });
     }
+
+    @Override
+    protected String getDraftKey() {
+        return "gist/" + gist.id();
+    }
 }

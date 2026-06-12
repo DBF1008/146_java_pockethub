@@ -45,6 +45,7 @@ import com.github.pockethub.android.accounts.AccountsHelper
 import com.github.pockethub.android.accounts.LoginActivity
 import com.github.pockethub.android.core.user.UserComparator
 import com.github.pockethub.android.persistence.AccountDataManager
+import com.github.pockethub.android.persistence.CommentDraftStore
 import com.github.pockethub.android.rx.AutoDisposeUtils
 import com.github.pockethub.android.ui.base.BaseActivity
 import com.github.pockethub.android.ui.gist.GistsPagerFragment
@@ -340,6 +341,9 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         database.repositoriesQueries.clearRepositories()
         database.organizationsQueries.clearOrgs()
         database.organizationsQueries.clearUsers()
+
+        // Clear any saved comment drafts
+        CommentDraftStore(this).clearAll()
 
         // Remove the account
         val accountManager = accountManager

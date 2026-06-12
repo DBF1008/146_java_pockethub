@@ -96,4 +96,10 @@ public class CreateCommentActivity extends
     protected CommentPreviewPagerAdapter createAdapter() {
         return new CommentPreviewPagerAdapter(this, repositoryId);
     }
+
+    @Override
+    protected String getDraftKey() {
+        return "issue/" + repositoryId.owner().login() + "/"
+                + repositoryId.name() + "#" + issueNumber;
+    }
 }

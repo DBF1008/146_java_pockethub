@@ -21,6 +21,9 @@ import android.view.Menu
 import android.view.MenuItem
 import com.github.pockethub.android.Intents.EXTRA_COMMENT
 import com.github.pockethub.android.R
+import com.github.pockethub.android.accounts.AccountUtils
+import com.github.pockethub.android.persistence.CommentDraft
+import com.github.pockethub.android.persistence.CommentDraftStore
 import com.github.pockethub.android.ui.base.BaseActivity
 import com.github.pockethub.android.ui.helpers.PagerHandler
 import com.meisolsson.githubsdk.model.GitHubComment
@@ -34,11 +37,16 @@ abstract class CreateCommentActivity : BaseActivity() {
 
     private var pagerHandler: PagerHandler<CommentPreviewPagerAdapter>? = null
 
+    private val draftStore by lazy { CommentDraftStore(this) }
+
+    private var commentSubmitted = false
+
     override fun onPostCreate(savedInstanceState: Bundle?) {
         super.onPostCreate(savedInstanceState)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
         configurePager()
+        restoreDraft()
     }
 
     private fun configurePager() {
@@ -58,6 +66,58 @@ abstract class CreateCommentActivity : BaseActivity() {
         lifecycle.removeObserver(pagerHandler!!)
     }
 
+    override fun onPause() {
+        super.onPause()
+        persistDraft()
+    }
+
+    /**
+     * Key uniquely identifying the comment target (and reply target) a draft
+     * belongs to. Returning null disables draft save/restore, which is the
+     * default so that flows like editing an existing comment are unaffected.
+     */
+    protected open fun getDraftKey(): String? = null
+
+    private fun restoreDraft() {
+        val account = AccountUtils.getLogin(this) ?: return
+        val key = getDraftKey() ?: return
+        val draft = draftStore.loadDraft(account, key) ?: return
+        if (draft.body.isBlank()) {
+            return
+        }
+
+        pagerHandler!!.adapter.setCommentText(draft.body)
+        if (draft.previewSelected) {
+            // Post so the switch happens after the pager has laid out its pages.
+            vp_pages.post { vp_pages.currentItem = 1 }
+        }
+    }
+
+    private fun persistDraft() {
+        // Never re-save after a successful submit cleared the draft.
+        if (commentSubmitted) {
+            return
+        }
+
+        val account = AccountUtils.getLogin(this) ?: return
+        val key = getDraftKey() ?: return
+        val body = pagerHandler?.adapter?.commentText ?: ""
+        if (body.isBlank()) {
+            draftStore.deleteDraft(account, key)
+        } else {
+            draftStore.saveDraft(
+                account, key, CommentDraft(body, vp_pages.currentItem == 1)
+            )
+        }
+    }
+
+    private fun clearDraft() {
+        commentSubmitted = true
+        val account = AccountUtils.getLogin(this) ?: return
+        val key = getDraftKey() ?: return
+        draftStore.deleteDraft(account, key)
+    }
+
     /**
      * Create comment
      *
@@ -71,6 +131,7 @@ abstract class CreateCommentActivity : BaseActivity() {
      * @param comment
      */
     protected fun finish(comment: GitHubComment) {
+        clearDraft()
         val data = Intent()
         data.putExtra(EXTRA_COMMENT, comment)
         setResult(RESULT_OK, data)
@@ -78,6 +139,7 @@ abstract class CreateCommentActivity : BaseActivity() {
     }
 
     protected fun finish(comment: GitComment) {
+        clearDraft()
         val data = Intent()
         data.putExtra(EXTRA_COMMENT, comment)
         setResult(RESULT_OK, data)
