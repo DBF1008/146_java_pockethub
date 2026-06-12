@@ -54,6 +54,13 @@ public class GistStore extends ItemStore {
     }
 
     /**
+     * Clear all cached gists.
+     */
+    public void clear() {
+        gists.clear();
+    }
+
+    /**
      * Get gist
      *
      * @param id

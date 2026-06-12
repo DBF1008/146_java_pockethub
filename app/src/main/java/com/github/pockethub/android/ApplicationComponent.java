@@ -2,6 +2,7 @@ package com.github.pockethub.android;
 
 import android.app.Application;
 
+import com.github.pockethub.android.accounts.AccountSessionManager;
 import com.github.pockethub.android.core.gist.GistStore;
 import com.github.pockethub.android.dagger.ActivityBuilder;
 import com.github.pockethub.android.dagger.DialogFragmentBuilder;
@@ -27,6 +28,8 @@ import dagger.android.support.AndroidSupportInjectionModule;
 public interface ApplicationComponent extends AndroidInjector<PocketHub> {
 
     GistStore gistStore();
+
+    AccountSessionManager accountSessionManager();
 
     @Component.Builder
     abstract class Builder extends AndroidInjector.Builder<PocketHub> {

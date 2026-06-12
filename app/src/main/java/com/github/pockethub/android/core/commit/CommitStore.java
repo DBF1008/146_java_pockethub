@@ -52,6 +52,13 @@ public class CommitStore extends ItemStore {
     }
 
     /**
+     * Clear all cached commits.
+     */
+    public void clear() {
+        commits.clear();
+    }
+
+    /**
      * Get commit
      *
      * @param repo

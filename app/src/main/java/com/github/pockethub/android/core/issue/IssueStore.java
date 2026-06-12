@@ -59,6 +59,13 @@ public class IssueStore extends ItemStore {
     }
 
     /**
+     * Clear all cached issues.
+     */
+    public void clear() {
+        repos.clear();
+    }
+
+    /**
      * Get issue
      *
      * @param repository

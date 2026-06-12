@@ -92,6 +92,14 @@ class ListFetcher<E>(
         swipeRefreshLayout!!.isRefreshing = true
         refresh(true)
     }
+
+    /**
+     * Immediately clear all displayed items.
+     * Used during account transitions to prevent stale data from being visible.
+     */
+    fun clearItems() {
+        itemListHandler.update(mutableListOf())
+    }
     /**
      * Called when the data has loaded.
      *

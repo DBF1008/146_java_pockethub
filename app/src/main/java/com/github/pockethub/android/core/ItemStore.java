@@ -91,5 +91,15 @@ public abstract class ItemStore {
             expungeEntries();
             items.put(id, new ItemReference<>(item, id, queue));
         }
+
+        /**
+         * Clear all items from the store
+         */
+        public void clear() {
+            items.clear();
+            while (queue.poll() != null) {
+                // drain reference queue
+            }
+        }
     }
 }

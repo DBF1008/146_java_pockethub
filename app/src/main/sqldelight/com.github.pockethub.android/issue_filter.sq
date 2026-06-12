@@ -78,6 +78,9 @@ DELETE FROM labels;
 clearIssueFilterLabels:
 DELETE FROM issue_filter_labels;
 
+clearAllMilestones:
+DELETE FROM milestones;
+
 getFilters:
 SELECT *
 FROM issue_filters
