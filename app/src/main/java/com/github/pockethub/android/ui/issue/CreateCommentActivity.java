@@ -93,6 +93,13 @@ public class CreateCommentActivity extends
     }
 
     @Override
+    protected String getDraftKey() {
+        return "issue_create_" + repositoryId.owner().login()
+                + "_" + repositoryId.name()
+                + "_" + issueNumber;
+    }
+
+    @Override
     protected CommentPreviewPagerAdapter createAdapter() {
         return new CommentPreviewPagerAdapter(this, repositoryId);
     }

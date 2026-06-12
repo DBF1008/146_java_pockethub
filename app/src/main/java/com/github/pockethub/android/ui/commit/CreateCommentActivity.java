@@ -127,6 +127,17 @@ public class CreateCommentActivity extends
     }
 
     @Override
+    protected String getDraftKey() {
+        String key = "commit_create_" + repository.owner().login()
+                + "_" + repository.name()
+                + "_" + commit;
+        if (isLineComment(path, position)) {
+            key += "_" + path.replace('/', '.') + "_" + position;
+        }
+        return key;
+    }
+
+    @Override
     protected CommentPreviewPagerAdapter createAdapter() {
         return new CommentPreviewPagerAdapter(this, repository);
     }

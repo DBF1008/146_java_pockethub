@@ -121,6 +121,13 @@ public class EditCommentActivity extends
     }
 
     @Override
+    protected String getDraftKey() {
+        return "issue_edit_" + repositoryId.owner().login()
+                + "_" + repositoryId.name()
+                + "_" + comment.id();
+    }
+
+    @Override
     protected CommentPreviewPagerAdapter createAdapter() {
         CommentPreviewPagerAdapter commentPreviewPagerAdapter = new CommentPreviewPagerAdapter(this, repositoryId);
         commentPreviewPagerAdapter.setCommentText(comment != null ? comment.body() : null);

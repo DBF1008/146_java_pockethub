@@ -73,6 +73,11 @@ public class CreateCommentActivity extends
     }
 
     @Override
+    protected String getDraftKey() {
+        return "gist_create_" + gist.id();
+    }
+
+    @Override
     protected void createComment(final String comment) {
         CommentRequest commentRequest = CommentRequest.builder()
                 .body(comment)
