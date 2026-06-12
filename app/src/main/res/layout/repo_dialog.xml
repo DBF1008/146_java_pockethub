@@ -81,6 +81,34 @@
                 android:paddingStart="10dp"
                 android:textStyle="normal" />
         </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_pin_repo_area"
+            style="@style/ListItem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone" >
+
+            <ImageView
+                android:id="@+id/iv_pin_repo_avatar"
+                style="@style/AvatarLarge"
+                android:src="@drawable/ic_pin_white_24dp"
+                android:contentDescription="@string/repo_pin" />
+
+            <TextView
+                android:id="@+id/tv_pin_repo"
+                style="@style/ListTitleText"
+                android:text="@string/repo_pin"
+                android:layout_width="match_parent"
+                android:includeFontPadding="true"
+                android:maxLines="2"
+                android:paddingBottom="0dp"
+                android:paddingStart="10dp"
+                android:textStyle="normal" />
+        </LinearLayout>
     </LinearLayout>
 
 </ScrollView>

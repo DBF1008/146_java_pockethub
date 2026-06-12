@@ -209,14 +209,36 @@ class RepositoryListFragment : BaseFragment(), OrganizationSelectionListener {
                 viewUser(owner)
             }
 
-            if (recentRepos != null && recentRepos!!.contains(repo)) {
+            val recent = recentRepos
+            if (recent != null) {
                 dialogView.divider.visibility = View.VISIBLE
-                val recentRepoArea = dialogView.ll_recent_repo_area
-                recentRepoArea.visibility = View.VISIBLE
-                recentRepoArea.setOnClickListener { v1 ->
+
+                val pinned = recent.isPinned(repo)
+                val pinArea = dialogView.ll_pin_repo_area
+                dialogView.tv_pin_repo.setText(
+                    if (pinned) R.string.repo_unpin else R.string.repo_pin
+                )
+                pinArea.visibility = View.VISIBLE
+                pinArea.setOnClickListener {
                     dialogHolder[0]!!.dismiss()
-                    recentRepos!!.remove(repo)
+                    if (pinned) {
+                        recent.unpin(repo)
+                    } else {
+                        recent.pin(repo)
+                    }
+                    recent.saveAsync()
                     listFetcher.refresh()
+                }
+
+                if (recent.isRecent(repo)) {
+                    val recentRepoArea = dialogView.ll_recent_repo_area
+                    recentRepoArea.visibility = View.VISIBLE
+                    recentRepoArea.setOnClickListener {
+                        dialogHolder[0]!!.dismiss()
+                        recent.remove(repo)
+                        recent.saveAsync()
+                        listFetcher.refresh()
+                    }
                 }
             }
 
@@ -251,23 +273,25 @@ class RepositoryListFragment : BaseFragment(), OrganizationSelectionListener {
             return
         }
 
-        // Add recent header if at least one recent repository
-        val first = (repos[0] as RepositoryItem).repo
-        if (recentRepos!!.contains(first)) {
-            repos.add(0, RepositoryHeaderItem(getString(R.string.recently_viewed)))
+        val recent = recentRepos!!
+        var index = 0
+
+        // Pinned group is sorted ahead of everything else
+        if (isPinnedItem(repos[0], recent)) {
+            repos.add(0, RepositoryHeaderItem(getString(R.string.pinned)))
+            index = 1
+            while (index < repos.size && isPinnedItem(repos[index], recent)) {
+                index++
+            }
         }
 
-        // Advance past all recent repositories
-        var index = 0
-        while (index < repos.size) {
-            val item = repos[index]
-            if (item is RepositoryItem) {
-                val repository = item.repo
-                if (!recentRepos!!.contains(repository.id()!!)) {
-                    break
-                }
-            }
+        // Recently viewed group follows the pinned group
+        if (index < repos.size && isRecentItem(repos[index], recent)) {
+            repos.add(index, RepositoryHeaderItem(getString(R.string.recently_viewed)))
             index++
+            while (index < repos.size && isRecentItem(repos[index], recent)) {
+                index++
+            }
         }
 
         if (index >= repos.size) {
@@ -294,10 +318,30 @@ class RepositoryListFragment : BaseFragment(), OrganizationSelectionListener {
         }
     }
 
+    private fun isPinnedItem(item: Item<*>, recent: RecentRepositories): Boolean {
+        return item is RepositoryItem && recent.isPinned(item.repo)
+    }
+
+    private fun isRecentItem(item: Item<*>, recent: RecentRepositories): Boolean {
+        return item is RepositoryItem && recent.isRecent(item.repo)
+    }
+
     private fun loadData(forceRefresh: Boolean): Single<List<Repository>> {
         val org = this.org.get() ?: return Single.just(emptyList())
 
         return Single.fromCallable { cache.getRepos(org, forceRefresh) }
+            .map { repos ->
+                // Self-correct against an authoritative, non-empty list only, so
+                // pinned/recent entries are never dropped on empty/offline loads.
+                if (forceRefresh && repos.isNotEmpty()) {
+                    recentRepos?.let { recent ->
+                        if (recent.reconcile(repos.mapNotNull { it.id() })) {
+                            recent.save()
+                        }
+                    }
+                }
+                repos
+            }
             .flatMap { repos ->
                 Observable.fromIterable(repos)
                     .sorted(recentRepos!!)

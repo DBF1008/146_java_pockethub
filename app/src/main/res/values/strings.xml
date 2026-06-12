@@ -177,6 +177,9 @@
     <string name="recent">Recent</string>
     <string name="recent_remove">Remove Recent</string>
     <string name="recent_list_remove">Remove from recently viewed</string>
+    <string name="pinned">PINNED</string>
+    <string name="repo_pin">Pin repository</string>
+    <string name="repo_unpin">Unpin repository</string>
     <string name="section_issue_status">Status:</string>
     <string name="status_open">Open</string>
     <string name="status_closed">Closed</string>
