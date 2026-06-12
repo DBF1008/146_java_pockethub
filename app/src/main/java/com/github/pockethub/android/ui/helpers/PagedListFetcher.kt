@@ -1,5 +1,6 @@
 package com.github.pockethub.android.ui.helpers
 
+import android.os.Bundle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
@@ -41,6 +42,13 @@ class PagedListFetcher<E>(
      */
     private var page: Int = 1
 
+    /**
+     * Whether state was restored from a saved instance (rotation / process death).
+     * When true, [onStart] skips the automatic refresh so the restored page and
+     * scroll position are preserved.
+     */
+    private var restored: Boolean = false
+
     init {
         lifecycle.addObserver(this)
         if (swipeRefreshLayout != null) {
@@ -55,6 +63,14 @@ class PagedListFetcher<E>(
 
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     private fun onStart() {
+        // After a config-change restore the fragment recreates with its items
+        // already populated; skip the refresh so the saved page / scroll
+        // position survive.  Returning from a detail screen fires ON_START
+        // without the restored flag, so a normal refresh runs and the list
+        // picks up any changes made while the user was away.
+        if (restored && !itemListHandler.isEmpty()) {
+            return
+        }
         refresh()
     }
 
@@ -71,6 +87,7 @@ class PagedListFetcher<E>(
         page = 1
         hasMore = true
         isLoading = false
+        restored = false
 
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.isRefreshing = true
@@ -126,6 +143,12 @@ class PagedListFetcher<E>(
         val items = onPageLoaded(newItems)
         if (page == 1) {
             itemListHandler.update(items)
+            // A non-restored page-1 load is the result of an explicit user
+            // action (new search, pull-to-refresh, return-from-detail): always
+            // show the top of the fresh result set.
+            if (!restored) {
+                itemListHandler.scrollToTop()
+            }
         } else {
             itemListHandler.addItems(items)
         }
@@ -138,5 +161,26 @@ class PagedListFetcher<E>(
         }
 
         showError(throwable)
+    }
+
+    /**
+     * Persist the current pagination cursor ([page]) and [hasMore] flag into
+     * [outState] so they can be recovered via [restoreState] after a
+     * configuration change or process death.
+     */
+    fun saveState(outState: Bundle, keyPrefix: String) {
+        outState.putInt("${keyPrefix}_page", page)
+        outState.putBoolean("${keyPrefix}_has_more", hasMore)
+    }
+
+    /**
+     * Recover pagination state previously written by [saveState].  Sets the
+     * internal `restored` flag so that the next [onStart] event does **not**
+     * trigger a redundant refresh.
+     */
+    fun restoreState(savedInstanceState: Bundle, keyPrefix: String) {
+        page = savedInstanceState.getInt("${keyPrefix}_page", 1)
+        hasMore = savedInstanceState.getBoolean("${keyPrefix}_has_more", true)
+        restored = true
     }
 }

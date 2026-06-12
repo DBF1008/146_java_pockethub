@@ -41,6 +41,8 @@ import static com.github.pockethub.android.Intents.EXTRA_REPOSITORY;
  */
 public class IssueSearchActivity extends BaseActivity {
 
+    private static final String STATE_LAST_QUERY = "last_query";
+
     private Repository repository;
 
     private SearchIssueListFragment issueFragment;
@@ -102,14 +104,42 @@ public class IssueSearchActivity extends BaseActivity {
         issueFragment = (SearchIssueListFragment) getSupportFragmentManager()
             .findFragmentById(R.id.list);
 
+        if (savedInstanceState != null) {
+            lastQuery = savedInstanceState.getString(STATE_LAST_QUERY);
+        }
+
         handleIntent(getIntent());
+
+        // When the activity is recreated without an ACTION_SEARCH intent
+        // (e.g. after rotation), handleIntent won't call search(), so the
+        // title would be lost.  Restore it from the saved lastQuery.
+        if (lastQuery != null) {
+            getSupportActionBar().setTitle(lastQuery);
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_LAST_QUERY, lastQuery);
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         setIntent(intent);
+        // Compare before handleIntent mutates lastQuery so we can tell whether
+        // the user actually submitted a different search term.
+        String newQuery = intent.getStringExtra(QUERY);
+        boolean queryChanged = newQuery != null && !newQuery.equals(lastQuery);
         handleIntent(intent);
-        issueFragment.pagedListFetcher.refresh();
+        // Only force a refresh when the user actually submitted a different
+        // query.  After a configuration change the same intent is re-delivered
+        // and the fragment's own lifecycle refresh already covers it; calling
+        // refresh() again here would race with pull-to-refresh and waste a
+        // network round-trip.
+        if (queryChanged) {
+            issueFragment.pagedListFetcher.refresh();
+        }
     }
 
     private void handleIntent(Intent intent) {

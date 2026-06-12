@@ -20,6 +20,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.github.pockethub.android.Intents.EXTRA_REPOSITORY
 import com.github.pockethub.android.ui.helpers.ItemListHandler
 import com.github.pockethub.android.ui.helpers.PagedListFetcher
@@ -45,6 +46,13 @@ import javax.inject.Inject
  * Fragment to display a list of [Issue] instances
  */
 class SearchIssueListFragment : BaseFragment() {
+
+    companion object {
+        private const val STATE_QUERY = "search_query"
+        private const val STATE_REPOSITORY = "search_repository"
+        private const val STATE_PAGED_FETCHER = "paged_fetcher"
+        private const val STATE_SCROLL_POSITION = "scroll_position"
+    }
 
     @Inject
     protected lateinit var service: SearchService
@@ -103,6 +111,20 @@ class SearchIssueListFragment : BaseFragment() {
             PagedScrollListener(itemListHandler.mainSection, pagedListFetcher)
         )
         itemListHandler.setEmptyText(R.string.no_issues)
+
+        // Restore the full search session (query, repo, pagination cursor,
+        // scroll position) after a configuration change or process death.
+        // The restored flag in PagedListFetcher prevents ON_START from
+        // triggering a redundant refresh that would clobber this state.
+        if (savedInstanceState != null) {
+            query = savedInstanceState.getString(STATE_QUERY)
+            repository = savedInstanceState.getParcelable(STATE_REPOSITORY)
+            if (::pagedListFetcher.isInitialized) {
+                pagedListFetcher.restoreState(savedInstanceState, STATE_PAGED_FETCHER)
+            }
+            val scrollPosition = savedInstanceState.getInt(STATE_SCROLL_POSITION, 0)
+            view.list.post { view.list.scrollToPosition(scrollPosition) }
+        }
     }
     /**
      * @param query
@@ -111,6 +133,19 @@ class SearchIssueListFragment : BaseFragment() {
     fun setQuery(query: String): SearchIssueListFragment {
         this.query = query
         return this
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(STATE_QUERY, query)
+        outState.putParcelable(STATE_REPOSITORY, repository)
+        if (::pagedListFetcher.isInitialized) {
+            pagedListFetcher.saveState(outState, STATE_PAGED_FETCHER)
+        }
+        val layoutManager = view?.list?.layoutManager as? LinearLayoutManager
+        if (layoutManager != null) {
+            outState.putInt(STATE_SCROLL_POSITION, layoutManager.findFirstVisibleItemPosition())
+        }
     }
 
     fun onItemClick(item: Item<*>, view: View) {

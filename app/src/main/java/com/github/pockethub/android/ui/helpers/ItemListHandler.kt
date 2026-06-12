@@ -125,4 +125,11 @@ class ItemListHandler(
     }
 
     fun isEmpty(): Boolean = items.isEmpty()
+
+    /**
+     * Scroll the underlying [RecyclerView] to the top of the list.
+     */
+    fun scrollToTop() {
+        recyclerView.scrollToPosition(0)
+    }
 }
