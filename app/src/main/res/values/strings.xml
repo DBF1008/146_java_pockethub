@@ -17,6 +17,7 @@
 
     <!-- Error messages -->
     <string name="error_orgs_load">Loading account &amp; organizations failed</string>
+    <string name="error_load_more_retry">Loading failed \u2013 tap to retry</string>
     <string name="error_issues_load">Loading issues failed</string>
     <string name="error_repos_load">Loading repositories failed</string>
     <string name="error_repo_load">Loading repository failed</string>

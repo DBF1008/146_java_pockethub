@@ -42,6 +42,12 @@ class ItemListHandler(
     var items: MutableList<Item<*>> = ArrayList()
         private set
 
+    /**
+     * The "no results" text configured via [setEmptyText]. Kept so it can be
+     * restored after an error message was temporarily shown by [showEmptyError].
+     */
+    private var emptyText: CharSequence = ""
+
     init {
         adapter.add(mainSection)
         recyclerView.layoutManager = LinearLayoutManager(context)
@@ -81,6 +87,7 @@ class ItemListHandler(
      * @return this fragment
      */
     fun setEmptyText(message: String) {
+        emptyText = message
         emptyView.text = message
     }
 
@@ -92,6 +99,29 @@ class ItemListHandler(
      */
     fun setEmptyText(resId: Int) {
         emptyView.setText(resId)
+        emptyText = emptyView.text
+    }
+
+    /**
+     * Show a retryable error in place of the empty view. Used when the very first
+     * load fails and there is no data to fall back to. The whole empty view becomes
+     * tappable and invokes [onRetry]. The normal empty text is restored on the next
+     * successful [update].
+     */
+    fun showEmptyError(resId: Int, onRetry: () -> Unit) {
+        emptyView.setText(resId)
+        emptyView.setOnClickListener { onRetry() }
+        show(emptyView)
+    }
+
+    /**
+     * Clear any retryable-error affordance and restore the normal empty text, so a
+     * subsequent successful render does not leave a stale (and clickable) error.
+     */
+    private fun clearEmptyError() {
+        emptyView.setOnClickListener(null)
+        emptyView.isClickable = false
+        emptyView.text = emptyText
     }
 
     /**
@@ -110,6 +140,7 @@ class ItemListHandler(
     }
 
     fun addItems(newItems: List<Item<*>>) {
+        clearEmptyError()
         items.addAll(newItems)
         mainSection.update(items)
 
@@ -117,6 +148,7 @@ class ItemListHandler(
     }
 
     fun update(newItems: List<Item<*>>) {
+        clearEmptyError()
         items.clear()
         items.addAll(newItems)
         mainSection.update(items)
