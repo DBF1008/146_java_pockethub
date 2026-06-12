@@ -317,6 +317,10 @@ Read the README.md: https://github.com/pockethub/PocketHub#setup-environment</st
     <string name="no_notifications">No notifications found</string>
     <string name="error_notifications_load">Error loading notifications</string>
     <string name="releases_not_yet_in_app">Sorry, we don\'t support releases in the app yet</string>
+    <string name="mark_all_notifications_read">Mark all as read</string>
+    <string name="error_marking_notification_read">Couldn\'t mark notification as read</string>
+    <string name="error_marking_notifications_read">Couldn\'t mark notifications as read</string>
+    <string name="error_marking_some_notifications_read">Couldn\'t mark some notifications as read</string>
     <string name="error_edit_issue">Could not edit issue</string>
     <string name="error_issue_state">Could not change state</string>
     <string name="section_issue_sort_order">Sort order</string>

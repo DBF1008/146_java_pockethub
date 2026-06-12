@@ -2,6 +2,9 @@ package com.github.pockethub.android.ui.notification
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import com.github.pockethub.android.ui.helpers.ItemListHandler
@@ -14,7 +17,6 @@ import com.github.pockethub.android.ui.issue.IssuesViewActivity
 import com.github.pockethub.android.ui.item.notification.NotificationHeaderItem
 import com.github.pockethub.android.ui.item.notification.NotificationItem
 import com.github.pockethub.android.util.ToastUtils
-import com.meisolsson.githubsdk.core.ServiceGenerator
 import com.meisolsson.githubsdk.model.NotificationThread
 import com.meisolsson.githubsdk.model.Page
 import com.meisolsson.githubsdk.model.Repository
@@ -41,6 +43,13 @@ class NotificationListFragment : BaseFragment(), NotificationReadListener {
     private lateinit var itemListHandler: ItemListHandler
 
     /**
+     * Current notifications backing the list. Single source of truth that all
+     * optimistic mutations operate on; [buildItems] renders it (re-deriving the
+     * repository group headers each time so they stay consistent).
+     */
+    private val threads = mutableListOf<NotificationThread>()
+
+    /**
      * Filters for the request to GitHub.
      */
     private val filters = HashMap<String, Any>()
@@ -61,6 +70,8 @@ class NotificationListFragment : BaseFragment(), NotificationReadListener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setHasOptionsMenu(true)
+
         itemListHandler = ItemListHandler(
             view.list,
             view.empty,
@@ -80,6 +91,21 @@ class NotificationListFragment : BaseFragment(), NotificationReadListener {
         listFetcher.onDataLoaded = this::onDataLoaded
     }
 
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        inflater.inflate(R.menu.fragment_notifications, menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.m_mark_all_read -> {
+                markAllVisibleRead()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     private fun loadData(forceRefresh: Boolean): Single<List<NotificationThread>> {
         return getPageAndNext(1)
             .flatMap { page -> Observable.fromIterable(page.items()) }
@@ -87,29 +113,48 @@ class NotificationListFragment : BaseFragment(), NotificationReadListener {
     }
 
     private fun onDataLoaded(newItems: MutableList<Item<*>>): MutableList<Item<*>> {
-        updateHeaders(newItems)
-        return newItems
+        threads.clear()
+        threads.addAll(newItems.map { (it as NotificationItem).notificationThread })
+        return buildItems()
     }
 
-    private fun updateHeaders(notifications: MutableList<Item<*>>) {
-        notifications.sortWith(Comparator { i1, i2 ->
-            val r1 = (i1 as NotificationItem).notificationThread.repository()
-            val r2 = (i2 as NotificationItem).notificationThread.repository()
-            r1!!.fullName()!!.compareTo(r2!!.fullName()!!, ignoreCase = true)
-        })
+    /**
+     * Render the current [threads] into a flat Groupie list, inserting one
+     * [NotificationHeaderItem] before each contiguous repository group. Re-deriving
+     * the headers from the threads on every render guarantees there are never
+     * orphan, duplicate, or missing group headers after an optimistic mutation or
+     * a rollback.
+     */
+    private fun buildItems(): MutableList<Item<*>> {
+        val sorted = threads.sortedWith(
+            compareBy(String.CASE_INSENSITIVE_ORDER) { it.repository()!!.fullName()!! })
 
-        var repoFound: Repository? = null
-        for (i in notifications.indices) {
-            val item = notifications[i] as NotificationItem
-            val thread = item.notificationThread
-            val fullName = thread.repository()!!.fullName()
-
-            if (repoFound == null || fullName != repoFound.fullName()) {
-                notifications.add(i, NotificationHeaderItem(thread.repository()!!, this))
+        val result = mutableListOf<Item<*>>()
+        var lastRepo: Repository? = null
+        for (thread in sorted) {
+            val repo = thread.repository()!!
+            if (lastRepo == null || repo.fullName() != lastRepo.fullName()) {
+                result.add(NotificationHeaderItem(repo, this))
             }
-
-            repoFound = thread.repository()
+            result.add(NotificationItem(thread, this))
+            lastRepo = repo
         }
+        return result
+    }
+
+    /**
+     * Push the current [threads] to the adapter. Groupie diffs against the
+     * previous list using the stable item ids, so only the changed rows animate
+     * and the scroll/group position of untouched rows is preserved.
+     */
+    private fun render() {
+        itemListHandler.update(buildItems())
+    }
+
+    private fun restore(backup: List<NotificationThread>) {
+        threads.clear()
+        threads.addAll(backup)
+        render()
     }
 
     private fun createItem(item: NotificationThread): Item<*> {
@@ -137,22 +182,83 @@ class NotificationListFragment : BaseFragment(), NotificationReadListener {
     }
 
     override fun readNotification(thread: NotificationThread) {
-        ServiceGenerator.createService(activity, NotificationService::class.java)
+        val backup = ArrayList(threads)
+        threads.removeAll { it.id() == thread.id() }
+        render()
+
+        notificationService
             .markNotificationRead(thread.id())
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .`as`(AutoDisposeUtils.bindToLifecycle(this))
-            .subscribe({ listFetcher.forceRefresh() }, { e -> e.printStackTrace()})
+            .subscribe({ }, {
+                restore(backup)
+                ToastUtils.show(activity, R.string.error_marking_notification_read)
+            })
     }
 
     override fun readNotifications(repository: Repository?) {
-        ServiceGenerator.createService(activity, NotificationService::class.java)
-            .markAllRepositoryNotificationsRead(repository!!.owner()!!.login(),
+        if (repository == null) {
+            return
+        }
+
+        val backup = ArrayList(threads)
+        threads.removeAll { it.repository()?.id() == repository.id() }
+        render()
+
+        notificationService
+            .markAllRepositoryNotificationsRead(repository.owner()!!.login(),
                 repository.name(), NotificationReadRequest.builder().build())
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .`as`(AutoDisposeUtils.bindToLifecycle(this))
-            .subscribe({ listFetcher.forceRefresh() }, { e -> e.printStackTrace()})
+            .subscribe({ }, {
+                restore(backup)
+                ToastUtils.show(activity, R.string.error_marking_notifications_read)
+            })
+    }
+
+    /**
+     * Batch mark every notification currently visible in this tab (i.e. matching
+     * the active filter) as read. Optimistically clears the list, then fans out a
+     * per-repository request. Rollback is per repository: repos whose request
+     * succeeds stay read, while a repo whose request fails has its group restored
+     * (with its header re-derived). A single toast is shown if anything failed.
+     */
+    private fun markAllVisibleRead() {
+        if (threads.isEmpty()) {
+            return
+        }
+
+        val backup = ArrayList(threads)
+        val repos = threads.mapNotNull { it.repository() }.distinctBy { it.id() }
+
+        threads.clear()
+        render()
+
+        var anyFailure = false
+        Observable.fromIterable(repos)
+            .flatMapSingle { repo ->
+                notificationService
+                    .markAllRepositoryNotificationsRead(repo.owner()!!.login(),
+                        repo.name(), NotificationReadRequest.builder().build())
+                    .subscribeOn(Schedulers.io())
+                    .map { Pair(repo, true) }
+                    .onErrorReturn { Pair(repo, false) }
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+            .`as`(AutoDisposeUtils.bindToLifecycle(this))
+            .subscribe({ (repo, success) ->
+                if (!success) {
+                    anyFailure = true
+                    threads.addAll(backup.filter { it.repository()?.id() == repo.id() })
+                    render()
+                }
+            }, { }, {
+                if (anyFailure) {
+                    ToastUtils.show(activity, R.string.error_marking_some_notifications_read)
+                }
+            })
     }
 
     fun onItemClick(item: Item<*>, view: View) {
